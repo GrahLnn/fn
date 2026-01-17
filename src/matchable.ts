@@ -1,12 +1,12 @@
 import isEqual from "fast-deep-equal";
-import { call0, I, K } from "./comb";
+import { call0, I, K } from "./comb.js";
 
 type Nil = null | undefined;
 type ToRecordKey<T> = T extends boolean
   ? `${T}` // 把 true/false 变成 "true"/"false"
   : T extends string | number
-  ? T
-  : never;
+    ? T
+    : never;
 
 type Handler<R, V = any> = {
   bivarianceHack(v: V): R;
@@ -38,7 +38,7 @@ type MatchableEnum<T extends string | number | boolean> = {
 };
 
 function matchableEnum<T extends string | number | boolean>(
-  value: T | Nil
+  value: T | Nil,
 ): MatchableEnum<T> {
   return {
     __recognizer__: "enum",
@@ -100,10 +100,10 @@ type MatchableUnion<T extends Record<string, any>> = {
 
     match<R>(h: DefaultHandlers<T, R>): R;
     is<L extends VariantTag<T>>(
-      l: L
+      l: L,
     ): this is Extract<MatchableUnion<T>, { tag: L }>;
     not<L extends VariantTag<T>>(
-      l: L
+      l: L,
     ): this is Extract<MatchableUnion<T>, { tag: L }>;
     in(arr: Array<VariantTag<T>>): boolean;
     not_in(arr: Array<VariantTag<T>>): boolean;
@@ -111,13 +111,13 @@ type MatchableUnion<T extends Record<string, any>> = {
     catch<K extends Array<VariantTag<T>>>(
       ...arr_branch: K
     ): <R>(
-      fn: (payload: Extract<T, Record<K[number], any>>[K[number]]) => R
+      fn: (payload: Extract<T, Record<K[number], any>>[K[number]]) => R,
     ) => R | null;
   };
 }[VariantTag<T>];
 
 function matchableUnion<T extends Record<string, any>>(
-  value: T
+  value: T,
 ): MatchableUnion<T> {
   const tag = Object.keys(value)[0] as VariantTag<T>;
   const payload = (value as any)[tag];
@@ -132,12 +132,12 @@ function matchableUnion<T extends Record<string, any>>(
       return fn(payload);
     },
     is<L extends VariantTag<T>>(
-      l: L
+      l: L,
     ): this is Extract<MatchableUnion<T>, { tag: L }> {
       return l === tag;
     },
     not<L extends VariantTag<T>>(
-      l: L
+      l: L,
     ): this is Extract<MatchableUnion<T>, { tag: L }> {
       return l !== tag;
     },
@@ -156,7 +156,7 @@ function matchableUnion<T extends Record<string, any>>(
     catch<K extends Array<VariantTag<T>>>(...arr_branch: K) {
       const self = this;
       return function <R>(
-        fn: (payload: Extract<T, Record<K[number], any>>[K[number]]) => R
+        fn: (payload: Extract<T, Record<K[number], any>>[K[number]]) => R,
       ): R | null {
         return self.in(arr_branch) && self.value && !isEqual(self.value, [])
           ? fn(self.value as any)
@@ -189,7 +189,7 @@ type MatchableObj<T extends Record<string, any>> = {
   catch<KS extends readonly (keyof T)[]>(
     ...keys: KS
   ): <R>(
-    fn: (props: { [P in KS[number]]: NonNullable<T[P]> }) => R
+    fn: (props: { [P in KS[number]]: NonNullable<T[P]> }) => R,
   ) => R | null;
 };
 
@@ -219,11 +219,8 @@ type IsUnion<T, U = T> = T extends any
     : true
   : never;
 
-type IsSingleKeyObj<O extends Record<string, any>> = IsUnion<
-  keyof O
-> extends true
-  ? false
-  : true;
+type IsSingleKeyObj<O extends Record<string, any>> =
+  IsUnion<keyof O> extends true ? false : true;
 
 /* 判断 “联合里的每个成员都恰好 1 键” */
 type IsUnionOfSingleKey<U extends Record<string, any>> =
@@ -241,10 +238,10 @@ type MatchableError<T> = {
 type _MatchableCore<T> = [T] extends [string | number | boolean]
   ? MatchableEnum<T>
   : [T] extends [Record<string, any>]
-  ? IsUnionOfSingleKey<T> extends true
-    ? MatchableUnion<T> // 单键：视作 Rust‑enum 封装
-    : MatchableObj<T> // 多键：普通对象
-  : MatchableError<T>;
+    ? IsUnionOfSingleKey<T> extends true
+      ? MatchableUnion<T> // 单键：视作 Rust‑enum 封装
+      : MatchableObj<T> // 多键：普通对象
+    : MatchableError<T>;
 
 export type ME<T> =
   | ([T] extends [null] ? EmptyMatchable : never)
@@ -252,7 +249,7 @@ export type ME<T> =
   | _MatchableCore<NonNullable<T>>;
 
 export function me<
-  T extends string | number | boolean | Record<string, any> | null | undefined
+  T extends string | number | boolean | Record<string, any> | null | undefined,
 >(value: T): ME<T>;
 export function me(value: any): any {
   if (value == null) return emptyMatchable;

@@ -1,3 +1,3 @@
-export * from "./matchable";
-export * from "./comb";
-export * from "./result";
+export * from "./matchable.js";
+export * from "./comb.js";
+export * from "./result.js";
