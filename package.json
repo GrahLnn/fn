@@ -1,0 +1,28 @@
+{
+  "name": "@grahlnn/fn",
+  "version": "0.1.0",
+  "description": "Ergonomic matchable helpers for enums, unions, and objects.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "fast-deep-equal": "^3.1.3"
+  }
+}
