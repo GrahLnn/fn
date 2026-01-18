@@ -263,18 +263,26 @@ type FullDiscHandlers<U, K extends PropertyKey, R> = {
   >;
 };
 
-type DiscDefaultHandlers<U, K extends PropertyKey, R> =
-  | (Partial<FullDiscHandlers<U, K, R>> & {
-      // 默认分支：收完整对象（含 discriminant）
-      _: Handler<R, DiscMember<U, K, DiscTagValue<U, K>>>;
-    })
-  | FullDiscHandlers<U, K, R>;
+type DiscHandlersAll<U, K extends PropertyKey, R> = FullDiscHandlers<U, K, R>;
 
-type DiscHandlersOrNever<U, K extends PropertyKey, R> =
+type DiscHandlersDefault<U, K extends PropertyKey, R> =
+  Partial<FullDiscHandlers<U, K, R>> & {
+    // 默认分支：收完整对象（含 discriminant）
+    _: Handler<R, DiscMember<U, K, DiscTagValue<U, K>>>;
+  };
+
+type DiscHandlersAllOrNever<U, K extends PropertyKey, R> =
   HasKeyInAll<U, K> extends true
     ? DiscTagValue<U, K> extends never
       ? never
-      : DiscDefaultHandlers<U, K, R>
+      : DiscHandlersAll<U, K, R>
+    : never;
+
+type DiscHandlersDefaultOrNever<U, K extends PropertyKey, R> =
+  HasKeyInAll<U, K> extends true
+    ? DiscTagValue<U, K> extends never
+      ? never
+      : DiscHandlersDefault<U, K, R>
     : never;
 
 function _disc_key(v: any): string | number {
@@ -296,7 +304,8 @@ type MatchableDisc<
   value: U;
   tag: DiscTagValue<U, K> | Nil;
 
-  match<R>(h: DiscHandlersOrNever<U, K, R>): R;
+  match<R>(h: DiscHandlersAllOrNever<U, K, R>): R;
+  match<R>(h: DiscHandlersDefaultOrNever<U, K, R>): R;
 
   is<V extends DiscTagValue<U, K>>(v: V): boolean;
   not<V extends DiscTagValue<U, K>>(v: V): boolean;
@@ -393,7 +402,11 @@ type MatchableObj<T extends Record<string, any>> = {
 
   match<const K extends keyof T & string, R>(
     key: K,
-    handlers: DiscHandlersOrNever<T, K, R>,
+    handlers: DiscHandlersAllOrNever<T, K, R>,
+  ): R;
+  match<const K extends keyof T & string, R>(
+    key: K,
+    handlers: DiscHandlersDefaultOrNever<T, K, R>,
   ): R;
 };
 
@@ -421,11 +434,8 @@ function matchableObj<T extends Record<string, any>>(
       return matchableDisc(value, key);
     },
 
-    match<const K extends keyof T & string, R>(
-      key: K,
-      handlers: DiscHandlersOrNever<T, K, R>,
-    ): R {
-      return matchableDisc(value, key).match(handlers);
+    match(key: any, handlers: any): any {
+      return (matchableDisc(value as any, key as any) as any).match(handlers);
     },
   };
 }

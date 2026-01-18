@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { me } from "../src/matchable.ts";
 
+const expectType = <T>(_value: T) => {};
+type NoKey<T, K extends PropertyKey> = K extends keyof T ? false : true;
+
 describe("matchable - empty", () => {
   it("handles null and undefined", () => {
     const n = me(null);
@@ -64,7 +67,7 @@ describe("matchable - enum", () => {
     const b = me(true);
     expect(
       b.match({
-        "true": () => "yes",
+        true: () => "yes",
         _: () => "no",
       }),
     ).toBe("yes");
@@ -88,17 +91,7 @@ describe("matchable - enum", () => {
       }),
     ).toBe("other");
 
-    const e = me<"a" | null>(null);
-    expect(e.__recognizer__).toBe("empty");
-    expect(e.value_or("a")).toBe("a");
-    expect(e.value_or_else(() => "a")).toBe("a");
-    expect(e.match({ _: () => "default" })).toBeNull();
-
-    const u = me<"a" | undefined>(undefined);
-    expect(u.__recognizer__).toBe("empty");
-    expect(u.value_or("a")).toBe("a");
-    expect(u.value_or_else(() => "a")).toBe("a");
-    expect(u.match({ _: () => "default" })).toBeNull();
+    // null/undefined are covered in empty tests; keep enum-focused checks here.
   });
 });
 
@@ -194,9 +187,7 @@ describe("matchable - discriminated object", () => {
   });
 
   it("supports in/not_in, into, catch, and boolean discriminants", () => {
-    type Kinded =
-      | { kind: "a"; x: number }
-      | { kind: "b"; x: number };
+    type Kinded = { kind: "a"; x: number } | { kind: "b"; x: number };
     const d = me<Kinded>({ kind: "a", x: 1 }).as("kind");
     expect(d.in(["a", "b"])).toBe(true);
     expect(d.not_in(["b"])).toBe(true);
@@ -208,13 +199,11 @@ describe("matchable - discriminated object", () => {
     expect(dNil.into()(() => 1)).toBeNull();
     expect(dNil.catch("a")(() => 1)).toBeNull();
 
-    type BoolKinded =
-      | { flag: true; x: number }
-      | { flag: false; x: number };
+    type BoolKinded = { flag: true; x: number } | { flag: false; x: number };
     const bool = me<BoolKinded>({ flag: true, x: 9 }).as("flag");
     expect(
       bool.match({
-        "true": (p) => p.x,
+        true: (p) => p.x,
         _: () => 0,
       }),
     ).toBe(9);
@@ -225,7 +214,8 @@ describe("matchable - discriminated object", () => {
     const dNull = me<K>({ kind: null, x: 1 }).as("kind");
     const rNull = dNull.match({
       a: () => 0,
-      _: (p) => ("kind" in p ? 1 : 2),
+      _: (p: { kind: "a"; x: number } | { kind: null; x: number }) =>
+        "kind" in p ? 1 : 2,
     });
     expect(rNull).toBe(1);
 
@@ -233,7 +223,8 @@ describe("matchable - discriminated object", () => {
     const dU = me<KU>({ kind: undefined, x: 1 }).as("kind");
     const rU = dU.match({
       a: () => 0,
-      _: (p) => ("kind" in p ? 1 : 2),
+      _: (p: { kind: "a"; x: number } | { kind: undefined; x: number }) =>
+        "kind" in p ? 1 : 2,
     });
     expect(rU).toBe(1);
   });
@@ -264,6 +255,44 @@ describe("matchable - discriminated object", () => {
     });
     expect(rB).toBe("x");
   });
+
+  it("checks type narrowing for me(s.a) and me(s).match('a')", () => {
+    type S = { a: "A"; b: 0 } | { a: "B"; b: 0 };
+    const run = (s: S) => {
+      const r1 = me(s.a).match({
+        A: (v) => {
+          expectType<"A" | "B">(v);
+          // @ts-expect-error enum match does not narrow by key
+          expectType<"A">(v);
+          return 0;
+        },
+        B: (v) => {
+          expectType<"A" | "B">(v);
+          // @ts-expect-error enum match does not narrow by key
+          expectType<"B">(v);
+          return 0;
+        },
+      });
+      expect(r1).toBe(0);
+
+      const r2 = me(s).match("a", {
+        A: (p) => {
+          expectType<0>(p.b);
+          const _noA: NoKey<typeof p, "a"> = true;
+          return 0;
+        },
+        B: (p) => {
+          expectType<0>(p.b);
+          const _noA: NoKey<typeof p, "a"> = true;
+          return 0;
+        },
+      });
+      expect(r2).toBe(0);
+    };
+
+    run({ a: "A", b: 0 });
+    run({ a: "B", b: 0 });
+  });
 });
 
 describe("matchable - object edge cases", () => {
@@ -276,8 +305,8 @@ describe("matchable - object edge cases", () => {
     const u = me({ A: 1 });
     const o1 = me({ "": 1 });
     const o2 = me({ "1": 2 });
-    expect(u.__recognizer__).toBe("union");
-    expect(o1.__recognizer__).toBe("object");
-    expect(o2.__recognizer__).toBe("object");
+    expect(String(u.__recognizer__)).toBe("union");
+    expect(String(o1.__recognizer__)).toBe("object");
+    expect(String(o2.__recognizer__)).toBe("object");
   });
 });
